@@ -18,7 +18,7 @@ from lib.utils.transforms import matrix_to_axis_angle
 from lib.models import build_network, build_body_model
 from lib.models.preproc.detector import DetectionModel
 from lib.models.preproc.extractor import FeatureExtractor
-from lib.models.smplify import TemporalSMPLify
+from lib.models.smplify import TemporalSMPLify, TemporalSMPLifyFeet
 
 try: 
     from lib.models.preproc.slam import SLAMModel
@@ -143,6 +143,10 @@ def run(cfg,
             smplify = TemporalSMPLify(smpl, img_w=width, img_h=height, device=cfg.DEVICE)
             input_keypoints = dataset.tracking_results[_id]['keypoints']
             pred = smplify.fit(pred, input_keypoints, **kwargs)
+
+            # feet loss
+            smplify_feet = TemporalSMPLifyFeet(smpl, img_w=width, img_h=height, device=cfg.DEVICE)
+            pred = smplify_feet.fit(pred, input_keypoints, **kwargs)
             
             with torch.no_grad():
                 network.pred_pose = pred['pose']

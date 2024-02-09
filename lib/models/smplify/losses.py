@@ -85,3 +85,55 @@ class SMPLifyLoss(torch.nn.Module):
             return loss
         
         return closure
+    
+
+class SMPLifyFeetLoss(torch.nn.Module):
+    def __init__(self, 
+                 res,
+                 cam_intrinsics,
+                 init_pose, 
+                 device,
+                 **kwargs
+                 ):
+        
+        super().__init__()
+        
+        self.res = res
+        self.cam_intrinsics = cam_intrinsics
+        self.init_pose = torch.from_numpy(init_pose).float().to(device)
+        
+    def forward(self, output, params, input_keypoints, bbox, 
+                reprojection_weight=100., sigma=100):
+        
+        pose, shape, cam = params
+        scale = bbox[..., 2:].unsqueeze(-1) * 200.
+        
+        # Assuming the last 2 joints are for the feet in the keypoints
+        # Adjust indices as per your keypoints data structure
+        pred_feet_keypoints = output.full_joints2d[..., -2:, :]
+        feet_joints_conf = input_keypoints[..., -2:, -1:]
+        reprojection_error = gmof(pred_feet_keypoints - input_keypoints[..., -2:, :-1], sigma)
+        reprojection_error = ((reprojection_error * feet_joints_conf) / scale).mean()
+        
+        # Loss for feet reprojection error
+        feet_reprojection_loss = reprojection_weight * reprojection_error
+        
+        return {'feet_reprojection': feet_reprojection_loss}
+        
+    def create_closure(self,
+                       optimizer,
+                       smpl, 
+                       params,
+                       bbox,
+                       input_keypoints):
+        
+        def closure():
+            optimizer.zero_grad()
+            output = smpl(*params, cam_intrinsics=self.cam_intrinsics, bbox=bbox, res=self.res)
+            
+            loss_dict = self.forward(output, params, input_keypoints, bbox)
+            loss = sum(loss_dict.values())
+            loss.backward()
+            return loss
+        
+        return closure
