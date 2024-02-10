@@ -57,13 +57,30 @@ class SMPLifyLoss(torch.nn.Module):
         pose_diff = compute_jitter(pose).mean()
         cam_diff = compute_jitter(cam).mean()
         smooth_error = pose_diff + cam_diff
+
+        # 5. feet reprojection error
+        # Assuming the last 2 joints are for the feet in the keypoints
+        # Adjust indices as per your keypoints data structure
+        pred_feet_keypoints = output.full_joints2d[..., -2:, :]
+        feet_joints_conf = input_keypoints[..., -2:, -1:]
+        reprojection_error_feet = gmof(pred_feet_keypoints - input_keypoints[..., -2:, :-1], sigma)
+        reprojection_error_feet = ((reprojection_error * feet_joints_conf) / scale).mean()
+
+        # 6. hands reprojection error
+        # keypoints 9 and 10 are for the hands
+        pred_hands_keypoints = output.full_joints2d[..., 9:11, :]
+        hands_joints_conf = input_keypoints[..., 9:11, -1:]
+        reprojection_error_hands = gmof(pred_hands_keypoints - input_keypoints[..., 9:11, :-1], sigma)
+        reprojection_error_hands = ((reprojection_error * hands_joints_conf) / scale).mean()
         
         # Sum up losses
         loss = {
             'reprojection': reprojection_weight * reprojection_error,
             'regularize': regularize_weight * regularize_error,
             'shape': shape_error,
-            'smooth': smooth_weight * smooth_error
+            'smooth': smooth_weight * smooth_error,
+            'feet_reprojection': reprojection_weight * reprojection_error_feet,
+            'hands_reprojection': reprojection_weight * reprojection_error_hands
         }
         
         return loss
@@ -86,54 +103,3 @@ class SMPLifyLoss(torch.nn.Module):
         
         return closure
     
-
-class SMPLifyFeetLoss(torch.nn.Module):
-    def __init__(self, 
-                 res,
-                 cam_intrinsics,
-                 init_pose, 
-                 device,
-                 **kwargs
-                 ):
-        
-        super().__init__()
-        
-        self.res = res
-        self.cam_intrinsics = cam_intrinsics
-        self.init_pose = torch.from_numpy(init_pose).float().to(device)
-        
-    def forward(self, output, params, input_keypoints, bbox, 
-                reprojection_weight=100., sigma=100):
-        
-        pose, shape, cam = params
-        scale = bbox[..., 2:].unsqueeze(-1) * 200.
-        
-        # Assuming the last 2 joints are for the feet in the keypoints
-        # Adjust indices as per your keypoints data structure
-        pred_feet_keypoints = output.full_joints2d[..., -2:, :]
-        feet_joints_conf = input_keypoints[..., -2:, -1:]
-        reprojection_error = gmof(pred_feet_keypoints - input_keypoints[..., -2:, :-1], sigma)
-        reprojection_error = ((reprojection_error * feet_joints_conf) / scale).mean()
-        
-        # Loss for feet reprojection error
-        feet_reprojection_loss = reprojection_weight * reprojection_error
-        
-        return {'feet_reprojection': feet_reprojection_loss}
-        
-    def create_closure(self,
-                       optimizer,
-                       smpl, 
-                       params,
-                       bbox,
-                       input_keypoints):
-        
-        def closure():
-            optimizer.zero_grad()
-            output = smpl(*params, cam_intrinsics=self.cam_intrinsics, bbox=bbox, res=self.res)
-            
-            loss_dict = self.forward(output, params, input_keypoints, bbox)
-            loss = sum(loss_dict.values())
-            loss.backward()
-            return loss
-        
-        return closure
