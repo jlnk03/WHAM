@@ -26,21 +26,5 @@ build:
 
 image: "r8.im/jlnk03/wham"
 
-  # a list of packages in the format <package-name>==<version>
-  # python_packages:
-    # - "numpy==1.19.4"
-    # - "torch==1.8.0"
-    # - "torchvision==0.9.0"
-  
-  # commands run after the environment is setup
-  # run:
-  #   - pip install -v -e third-party/ViTPose
-  #   - cd third-party/DPVO
-  #   - wget https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip
-  #   - unzip eigen-3.4.0.zip -d thirdparty && rm -rf eigen-3.4.0.zip
-  #   - pip install .
-    # - "echo env is ready!"
-    # - "echo another command if needed"
-
 # predict.py defines how predictions are run on your model
 predict: "predict.py:Predictor"
