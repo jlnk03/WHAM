@@ -38,9 +38,17 @@ class SMPLifyLoss(torch.nn.Module):
         
         pose, shape, cam = params
         scale = bbox[..., 2:].unsqueeze(-1) * 200.
+
+        print(f'input_keypoints shape: {input_keypoints.shape}')
+        print(f'input_keypoints: {input_keypoints}')
+
+        print(f'output shape: {output.shape}')
+        print(f'output: {output}')
         
         # Loss 1. Data term
         pred_keypoints = output.full_joints2d[..., :17, :]
+        print(f'pred_keypoints shape: {pred_keypoints.shape}')
+        print(f'pred_keypoints: {pred_keypoints}')
         joints_conf = input_keypoints[..., -1:]
         reprojection_error = gmof(pred_keypoints - input_keypoints[..., :-1], sigma)
         reprojection_error = ((reprojection_error * joints_conf) / scale).mean()
@@ -59,15 +67,12 @@ class SMPLifyLoss(torch.nn.Module):
         smooth_error = pose_diff + cam_diff
 
         # 5. feet reprojection error
-        # Assuming the last 2 joints are for the feet in the keypoints
-        # Adjust indices as per your keypoints data structure
         pred_feet_keypoints = output.full_joints2d[..., -2:, :]
         feet_joints_conf = input_keypoints[..., -2:, -1:]
         reprojection_error_feet = gmof(pred_feet_keypoints - input_keypoints[..., -2:, :-1], sigma)
         reprojection_error_feet = ((reprojection_error * feet_joints_conf) / scale).mean()
 
         # 6. hands reprojection error
-        # keypoints 9 and 10 are for the hands
         pred_hands_keypoints = output.full_joints2d[..., 9:11, :]
         hands_joints_conf = input_keypoints[..., 9:11, -1:]
         reprojection_error_hands = gmof(pred_hands_keypoints - input_keypoints[..., 9:11, :-1], sigma)
