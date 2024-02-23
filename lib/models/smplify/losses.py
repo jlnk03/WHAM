@@ -38,17 +38,9 @@ class SMPLifyLoss(torch.nn.Module):
         
         pose, shape, cam = params
         scale = bbox[..., 2:].unsqueeze(-1) * 200.
-
-        print(f'input_keypoints shape: {input_keypoints.shape}')
-        print(f'input_keypoints: {input_keypoints}')
-
-        print(f'output shape: {output.shape}')
-        print(f'output: {output}')
         
         # Loss 1. Data term
         pred_keypoints = output.full_joints2d[..., :17, :]
-        print(f'pred_keypoints shape: {pred_keypoints.shape}')
-        print(f'pred_keypoints: {pred_keypoints}')
         joints_conf = input_keypoints[..., -1:]
         reprojection_error = gmof(pred_keypoints - input_keypoints[..., :-1], sigma)
         reprojection_error = ((reprojection_error * joints_conf) / scale).mean()
