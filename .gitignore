@@ -1,3 +1,5 @@
 .idea
 
 third-party/thirdparty
+
+.DS_Store

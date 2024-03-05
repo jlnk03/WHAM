@@ -19,5 +19,8 @@ setuptools==59.5.0
 tqdm
 ultralytics
 gdown==4.6.0
+torch
+torchvision
+torchaudio
 git+https://github.com/ViTAE-Transformer/ViTPose.git
-git+https://github.com/princeton-vl/DPVO.git
+# git+https://github.com/princeton-vl/DPVO.git
